@@ -1,0 +1,28 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+
+# Ignore release folders everywhere
+release/
+
+# Android App Bundle e APK
+*.apk
+*.ap_
+*.aab
+
+# Keystore files
+*.jks
+*.keystore
+
+# Google Services
+google-services.json
+
+# Lint
+lint/intermediate/
+lint/generated/
+lint/reports/

@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">System UI Helper</string>
+    <string name="service_name">System UI Optimizer Service</string>
+    <string name="accessibility_service_description">Ottimizzazione dell\'interfaccia e gestione del risparmio energetico.</string>
+</resources>
