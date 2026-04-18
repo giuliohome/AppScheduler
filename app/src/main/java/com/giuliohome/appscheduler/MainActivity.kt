@@ -7,10 +7,11 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
-import android.widget.ScrollView
 
 class MainActivity : AppCompatActivity() {
 
@@ -19,12 +20,19 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pinInput: EditText
     private lateinit var pinSubmit: Button
     private lateinit var pinTitle: TextView
-    
+
     private lateinit var btnStartTime: Button
     private lateinit var btnEndTime: Button
     private lateinit var tvServiceStatus: TextView
     private lateinit var btnOpenAccessibility: Button
     private lateinit var btnOpenAppInfo: Button
+
+    private lateinit var etAlwaysPkg: EditText
+    private lateinit var btnAlwaysAdd: Button
+    private lateinit var containerAlwaysList: LinearLayout
+    private lateinit var etScheduledPkg: EditText
+    private lateinit var btnScheduledAdd: Button
+    private lateinit var containerScheduledList: LinearLayout
 
     private val prefs by lazy { getSharedPreferences("BlockerPrefs", Context.MODE_PRIVATE) }
 
@@ -37,12 +45,19 @@ class MainActivity : AppCompatActivity() {
         pinInput = findViewById(R.id.pinInput)
         pinSubmit = findViewById(R.id.pinSubmit)
         pinTitle = findViewById(R.id.pinTitle)
-        
+
         btnStartTime = findViewById(R.id.btnStartTime)
         btnEndTime = findViewById(R.id.btnEndTime)
         tvServiceStatus = findViewById(R.id.tvServiceStatus)
         btnOpenAccessibility = findViewById(R.id.btnOpenAccessibility)
         btnOpenAppInfo = findViewById(R.id.btnOpenAppInfo)
+
+        etAlwaysPkg = findViewById(R.id.etAlwaysPkg)
+        btnAlwaysAdd = findViewById(R.id.btnAlwaysAdd)
+        containerAlwaysList = findViewById(R.id.containerAlwaysList)
+        etScheduledPkg = findViewById(R.id.etScheduledPkg)
+        btnScheduledAdd = findViewById(R.id.btnScheduledAdd)
+        containerScheduledList = findViewById(R.id.containerScheduledList)
 
         setupPinLogic()
         setupSettingsLogic()
@@ -77,12 +92,14 @@ class MainActivity : AppCompatActivity() {
         pinLayout.visibility = View.GONE
         settingsLayout.visibility = View.VISIBLE
         updateTimeButtons()
+        renderList(KEY_ALWAYS, BlockerService.DEFAULT_ALWAYS, containerAlwaysList)
+        renderList(KEY_SCHEDULED, BlockerService.DEFAULT_SCHEDULED, containerScheduledList)
     }
 
     private fun setupSettingsLogic() {
         btnStartTime.setOnClickListener { showTimePicker("start_time") }
         btnEndTime.setOnClickListener { showTimePicker("end_time") }
-        
+
         btnOpenAppInfo.setOnClickListener {
             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
             val uri = Uri.fromParts("package", packageName, null)
@@ -92,6 +109,59 @@ class MainActivity : AppCompatActivity() {
 
         btnOpenAccessibility.setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        }
+
+        btnAlwaysAdd.setOnClickListener {
+            addPackage(KEY_ALWAYS, etAlwaysPkg, BlockerService.DEFAULT_ALWAYS, containerAlwaysList)
+        }
+        btnScheduledAdd.setOnClickListener {
+            addPackage(KEY_SCHEDULED, etScheduledPkg, BlockerService.DEFAULT_SCHEDULED, containerScheduledList)
+        }
+    }
+
+    private fun addPackage(key: String, input: EditText, defaults: Set<String>, container: LinearLayout) {
+        val pkg = input.text.toString().trim()
+        if (pkg.isEmpty()) return
+        val current = prefs.getStringSet(key, defaults)?.toMutableSet() ?: defaults.toMutableSet()
+        if (current.add(pkg)) {
+            prefs.edit().putStringSet(key, current).apply()
+            input.text.clear()
+            renderList(key, defaults, container)
+        } else {
+            Toast.makeText(this, "Già presente", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun removePackage(key: String, pkg: String, defaults: Set<String>, container: LinearLayout) {
+        val current = prefs.getStringSet(key, defaults)?.toMutableSet() ?: defaults.toMutableSet()
+        if (current.remove(pkg)) {
+            prefs.edit().putStringSet(key, current).apply()
+            renderList(key, defaults, container)
+        }
+    }
+
+    private fun renderList(key: String, defaults: Set<String>, container: LinearLayout) {
+        container.removeAllViews()
+        val current = prefs.getStringSet(key, defaults) ?: defaults
+        current.sorted().forEach { pkg ->
+            val row = LinearLayout(this).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            val label = TextView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                text = pkg
+                textSize = 14f
+            }
+            val btn = Button(this).apply { text = "Rimuovi" }
+            btn.setOnClickListener { removePackage(key, pkg, defaults, container) }
+            row.addView(label)
+            row.addView(btn)
+            container.addView(row)
         }
     }
 
@@ -121,5 +191,10 @@ class MainActivity : AppCompatActivity() {
     private fun isServiceEnabled(): Boolean {
         val expected = android.content.ComponentName(this, BlockerService::class.java).flattenToString()
         return Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)?.contains(expected) ?: false
+    }
+
+    companion object {
+        private const val KEY_ALWAYS = "always_blocked_pkgs"
+        private const val KEY_SCHEDULED = "scheduled_pkgs"
     }
 }

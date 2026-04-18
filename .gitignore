@@ -26,3 +26,6 @@ google-services.json
 lint/intermediate/
 lint/generated/
 lint/reports/
+
+# Claude Code local settings
+.claude/
